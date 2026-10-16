@@ -3,6 +3,7 @@ import asyncio
 from aiohttp import web
 import edge_tts
 import re
+import os
 from urllib.parse import unquote
 import base64
 import requests
@@ -262,4 +263,5 @@ app.router.add_post('/api/mimostream', generate_mimostream)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 1233))
+    print("port===>",port)
     web.run_app(app, host='0.0.0.0', port=port)
