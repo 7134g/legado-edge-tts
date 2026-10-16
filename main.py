@@ -250,15 +250,16 @@ async def generate_mimostream(request):
         print("异常", e)
         return web.json_response({"error": str(e)}, status=500)
 
-def home(request):
+async def home(request):
      return web.json_response({"status": "ok"}, status=200)
 
 
 app = web.Application()
-app.router.add_post('/', home)
+app.router.add_get('/', home)
 app.router.add_post('/api/rap', generate_audio)
 app.router.add_post('/api/mimo', generate_mimoaudio)
 app.router.add_post('/api/mimostream', generate_mimostream)
 
 if __name__ == '__main__':
-    web.run_app(app, host='0.0.0.0', port=1233)
+    port = int(os.environ.get("PORT", 1233))
+    web.run_app(app, host='0.0.0.0', port=port)
