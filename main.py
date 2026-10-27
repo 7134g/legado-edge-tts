@@ -11,6 +11,7 @@ import hashlib
 import wave
 import struct
 from openai import OpenAI
+import time
 
 MIMO_API_URL = "https://api.xiaomimimo.com/v1/chat/completions"
 MIMO_OPEN_URL = "https://api.xiaomimimo.com/v1"
@@ -22,6 +23,7 @@ def remove_special_characters(text):
     return re.sub(r'[^\w\s\u4e00-\u9fff，。！？；：、（）《》【】“”‘’]', '', text)
 
 async def generate_audio(request):
+    print("get audio", time.strftime("%Y年%m月%d日 %H:%M:%S"))
     try:
         # 解析表单数据
         form = await request.post()
@@ -252,6 +254,7 @@ async def generate_mimostream(request):
         return web.json_response({"error": str(e)}, status=500)
 
 async def home(request):
+     print("hearbeat")
      return web.json_response({"status": "ok"}, status=200)
 
 
