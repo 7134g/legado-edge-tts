@@ -254,7 +254,7 @@ async def generate_mimostream(request):
         return web.json_response({"error": str(e)}, status=500)
 
 async def home(request):
-     print("hearbeat")
+     print("hearbeat", time.strftime("%Y年%m月%d日 %H:%M:%S"))
      return web.json_response({"status": "ok"}, status=200)
 
 
