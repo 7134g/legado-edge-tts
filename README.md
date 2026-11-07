@@ -12,7 +12,7 @@ edge 大声朗读微软 TTS 服务, 在阅读 APP 中添加配置语音引擎方
 
 ```sh
 # 如果发现接口不能使用 把 edgetts请升级到最新版: pip install -U edge-tts
-pip install aiohttp edge-tts requests openai
+pip install aiohttp edge-tts requests
 python main.py
 
 # 在阅读内语速最好设置为2.5     >2.5 就读的快， < 2.5 就读的慢

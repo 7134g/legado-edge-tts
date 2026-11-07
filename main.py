@@ -8,22 +8,15 @@ from urllib.parse import unquote
 import base64
 import requests
 import hashlib
-import wave
 import struct
-from openai import OpenAI
 import time
-
-MIMO_API_URL = "https://api.xiaomimimo.com/v1/chat/completions"
-MIMO_OPEN_URL = "https://api.xiaomimimo.com/v1"
-MIMO_API_KEY = "这里替换为你的api-key" # sk-xxxxxxx
-
 
 def remove_special_characters(text):
     text = unquote(text)
     return re.sub(r'[^\w\s\u4e00-\u9fff，。！？；：、（）《》【】“”‘’]', '', text)
 
 async def generate_audio(request):
-    print("get audio", time.strftime("%Y年%m月%d日 %H:%M:%S"))
+    startTime = time.perf_counter()
     try:
         # 解析表单数据
         form = await request.post()
@@ -66,78 +59,10 @@ async def generate_audio(request):
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
+    finally:
+        endTime = time.perf_counter()
+        print(f"{time.strftime("%Y年%m月%d日 %H:%M:%S")} 执行时间: {endTime - startTime:.4f} 秒")
 
-
-# 小米 mimo
-async def generate_mimoaudio(request):
-    try:
-        form = await request.post()
-        text = form.get('text', '')
-        voice = form.get('voice', 'Chloe')
-        rate = form.get('rate', '0')
-        style = form.get("style", "自然、口语化的对话语调")
-
-        cleaned_text = remove_special_characters(text)
-        try:
-            rate_value = max(0, min(100, int(rate)))
-        except ValueError:
-            rate_value = 25
-
-        diff = rate_value - 25
-        if diff <= -15:
-            pace = "非常慢的语速"
-        elif diff <= -5:
-            pace = "偏慢的语速"
-        elif diff >= 15:
-            pace = "非常快的语速"
-        elif diff >= 5:
-            pace = "偏快的语速"
-        else:
-            pace = "正常语速"
-        cur_style = f"{style}，{pace}"
-
-
-        uid = hashlib.md5(cleaned_text.encode("utf-8")).hexdigest()[:12]
-
-        # ---- 改动1: Content-Type 改为 audio/wav ----
-        response = web.StreamResponse(
-            status=200,
-            headers={
-                'Content-Type': 'audio/wav',
-                'Content-Disposition': f'attachment; filename="audio_{uid}.mp3"',
-            }
-        )
-        await response.prepare(request)
-        headers = {
-            "api-key": MIMO_API_KEY,
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": "mimo-v2.5-tts",
-            "messages": [
-                {"role": "user",      "content": cur_style},
-                {"role": "assistant", "content": cleaned_text},
-            ],
-            "audio": {
-                "format": "wav",
-                "voice": voice,
-            },
-        }
-
-        resp = requests.post(
-            MIMO_API_URL, headers=headers, json=payload, timeout=120
-        )
-        resp.raise_for_status()
-        result = resp.json()
-        audio_b64 = result["choices"][0]["message"]["audio"]["data"]
-        audio_bytes = base64.b64decode(audio_b64)
-        await response.write(audio_bytes)  # 每个 chunk 只写自己
-        await response.write_eof()
-        return response
-
-    except Exception as e:
-        print("异常", str(e))
-        return web.json_response({"error": str(e)}, status=500)
 
 
 
@@ -185,74 +110,6 @@ def generate_wav(stream):
     return wav_data
 
 
-async def generate_mimostream(request):
-    try:
-        form = await request.post()
-        text = form.get('text', '')
-        voice = form.get('voice', 'Chloe')
-        rate = form.get('rate', '0')
-        style = form.get("style", "自然、口语化的对话语调")
-
-        cleaned_text = remove_special_characters(text)
-        try:
-            rate_value = max(0, min(100, int(rate)))
-        except ValueError:
-            rate_value = 25
-
-        diff = rate_value - 25
-        if diff <= -15:
-            pace = "非常慢的语速"
-        elif diff <= -5:
-            pace = "偏慢的语速"
-        elif diff >= 15:
-            pace = "非常快的语速"
-        elif diff >= 5:
-            pace = "偏快的语速"
-        else:
-            pace = "正常语速"
-        cur_style = f"{style}，{pace}"
-
-
-        uid = hashlib.md5(cleaned_text.encode("utf-8")).hexdigest()[:12]
-
-        # ---- 改动1: Content-Type 改为 audio/wav ----
-        response = web.StreamResponse(
-            status=200,
-            headers={
-                'Content-Type': 'audio/wav',
-                'Content-Disposition': f'attachment; filename="audio_{uid}.mp3"',
-            }
-        )
-        await response.prepare(request)
-        client = OpenAI(
-            api_key=MIMO_API_KEY,
-            base_url=MIMO_OPEN_URL,
-        )
-        stream = client.chat.completions.create(
-            model="mimo-v2.5-tts",
-            messages=[
-                {
-                    "role": "user",
-                    "content": cur_style,
-                },
-                {
-                    "role": "assistant",
-                    "content": cleaned_text,
-                },
-            ],
-            audio={"format": "pcm16", "voice": voice},
-            stream=True,
-        )
-        # 收集所有 PCM 块
-        
-        await response.write(generate_wav(stream))  # 每个 chunk 只写自己
-        await response.write_eof()
-        return response
-
-    except Exception as e:
-        print("异常", e)
-        return web.json_response({"error": str(e)}, status=500)
-
 async def home(request):
      print("hearbeat", time.strftime("%Y年%m月%d日 %H:%M:%S"))
      return web.json_response({"status": "ok"}, status=200)
@@ -261,10 +118,8 @@ async def home(request):
 app = web.Application()
 app.router.add_get('/', home)
 app.router.add_post('/api/rap', generate_audio)
-app.router.add_post('/api/mimo', generate_mimoaudio)
-app.router.add_post('/api/mimostream', generate_mimostream)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 1233))
-    print("port===>",port)
+    print("service port===>",port)
     web.run_app(app, host='0.0.0.0', port=port)
